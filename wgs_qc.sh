@@ -99,5 +99,10 @@ plink2 \
   --make-pgen \
   --out wgs_ps_step1
 
+# COUNT Varient
+plink2 \
+  --pfile wgs_ps_step1 \
+  --write-snplist \
+  --out wgs_ps_step1
 
-
+wc -l wgs_ps_step1.snplist
