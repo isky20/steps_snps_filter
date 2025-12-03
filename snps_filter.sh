@@ -143,3 +143,11 @@ singularity exec plink_combo.sif plink2 \
   --exclude ambiguous_snps.txt \
   --make-pgen \
   --out snps_array_step7_noambig
+
+#count
+singularity exec plink_combo.sif plink2 \
+  --pfile snps_array_step7_noambig \
+  --write-snplist \
+  --out snps_array_step7_noambig
+
+wc -l snps_array_step7_noambig.snplist
