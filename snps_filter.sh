@@ -1,9 +1,16 @@
-#Adjust the header info HWp
+###############################
+# 0. (Optional) Adjust header #
+###############################
+# Example: rename a header field (e.g. change HWP tag name in the VCF header).
+# This does a global search/replace in the whole VCF file.
+sed 's/OLDWORD/NEWWORD/g' input.vcf > input_renamed.vcf
 
-sed 's/OLDWORD/NEWWORD/g' input.vcf > output.vcf
 
-#Add extra ID to info header in vcf
-
+#########################################
+# 1. Add extra INFO fields to VCF header
+#########################################
+# Create a small header file describing additional INFO annotations
+# that you will later attach to the VCF (e.g. from array annotation).
 cat > extra_info_header.hdr <<EOF
 ##INFO=<ID=chr_id,Number=1,Type=String,Description="Chromosome ID from array annotation">
 ##INFO=<ID=start,Number=1,Type=String,Description="Start position from array annotation">
@@ -35,96 +42,114 @@ cat > extra_info_header.hdr <<EOF
 ##INFO=<ID=allele_count,Number=.,Type=String,Description="Allele count">
 EOF
 
-bcftools annotate -h extra_info_header.hdr  -Oz -o vcf_with_info_header.vcf.gz input.vcf
-tadix vcf_with_info_header.vcf.gz
+# Attach the new INFO header lines to the original VCF
+bcftools annotate \
+  -h extra_info_header.hdr \
+  -Oz -o vcf_with_info_header.vcf.gz \
+  input_renamed.vcf
 
-#Create VCF available for plink 
+# Index the compressed VCF (bgzip + tabix index)
+tabix vcf_with_info_header.vcf.gz
 
+
+###########################################
+# 2. Strip INFO for PLINK (keep GT only)
+###########################################
+# Remove all INFO fields to make a smaller, “GT-only” VCF for PLINK.
 bcftools annotate \
   -x INFO \
   -Oz -o vcf_noinfo.vcf.gz \
   vcf_with_info_header.vcf.gz
 
-tabix  vcf_noinfo.vcf.gz
-
-#Convert your SNP-array VCF to PLINK format (autosomal, bi-allelic SNPs)
-singularity exec plink_combo.sif plink2
---vcf vcf_noinfo.vcf.gz
---snps-only just-acgt
---max-alleles 2
---make-pgen
---out snps_array_qc0
---allow-extra-chr
---threads 32
---split-par hg38
+# Index again after modification
+tabix vcf_noinfo.vcf.gz
 
 
-🟦 SAMPLE-LEVEL QC
-1️⃣ autosome   
+##############################################################
+# 3. Convert SNP-array VCF to PLINK2 pgen (raw starting point)
+##############################################################
+# -–snps-only just-acgt : keep only SNPs with A/C/G/T alleles
+# --max-alleles 2       : bi-allelic variants only
+# --allow-extra-chr     : allow non-standard chromosome names
+# --split-par hg38      : handle pseudoautosomal regions on X/Y (hg38)
 singularity exec plink_combo.sif plink2 \
-  --pfile snps_array_qc0   --autosome   --make-pgen   --out snps_array_step1 --allow-extra-chr
-  
-2️⃣ Remove samples with high missingness (> 5%)
-singularity exec plink_combo.sif plink2 \
-  --pfile snps_array_step1   --mind 0.05  --make-pgen   --out snps_array_step2_mind
+  --vcf vcf_noinfo.vcf.gz \
+  --snps-only just-acgt \
+  --max-alleles 2 \
+  --make-pgen \
+  --out snps_array_qc0 \
+  --allow-extra-chr \
+  --threads 32 \
+  --split-par hg38
 
-3️⃣ Remove heterozygosity outliers
+
+#######################
+# 🟦 SAMPLE-LEVEL QC  #
+#######################
+
+##############
+# 4. Autosome
+##############
+# Keep autosomal variants only (chr1–22) for downstream sample QC.
+singularity exec plink_combo.sif plink2 \
+  --pfile snps_array_qc0 \
+  --autosome \
+  --make-pgen \
+  --out snps_array_step1 \
+  --allow-extra-chr
+
+
+####################################################
+# 5. Remove samples with high missingness (> 5%)
+####################################################
+# --mind 0.05 removes samples with >5% missing genotypes.
+singularity exec plink_combo.sif plink2 \
+  --pfile snps_array_step1 \
+  --mind 0.05 \
+  --make-pgen \
+  --out snps_array_step2_mind
+
+
+######################################
+# 6. Remove heterozygosity outliers
+######################################
+# --het computes per-sample inbreeding coefficient F.
+# Outliers will be identified in R (see R code below).
 singularity exec plink_combo.sif plink2 \
   --pfile snps_array_step2_mind \
   --het \
   --out het
-# Detect outliers in R  (|F − mean(F)| > 3SD), produce
-#===============================================================
-# Read het.het (do NOT treat '#' as comment)
-het <- read.table("het.het",
-                  header = TRUE,
-                  comment.char = "",
-                  stringsAsFactors = FALSE)
 
-# Fix column name: X.IID -> IID
-names(het)[1] <- "IID"
-
-# Check
-print(colnames(het))
-# Should be: "IID" "O.HOM." "E.HOM." "OBS_CT" "F"
-
-# Mean and SD of F
-meanF <- mean(het$F, na.rm = TRUE)
-sdF   <- sd(het$F,   na.rm = TRUE)
-
-# Flag outliers: |F - mean(F)| > 3 SD
-het$outlier <- abs(het$F - meanF) > 3 * sdF
-
-# Subset outliers, keep as data.frame (drop = FALSE!)
-out <- het[het$outlier, c("IID"), drop = FALSE]
-
-if (nrow(out) > 0) {
-  out2 <- data.frame(FID = out$IID, IID = out$IID)
-  write.table(out2, "het_outliers.txt",
-              col.names = FALSE,
-              row.names  = FALSE,
-              quote      = FALSE)
-} else {
-  # no outliers -> create empty file
-  file.create("het_outliers.txt")
-}
-#===============================================================
-
+# After running the R script, het_outliers.txt will contain FID IID of outlier samples.
 singularity exec plink_combo.sif plink2 \
   --pfile snps_array_step2_mind \
   --remove het_outliers.txt \
   --make-pgen \
   --out snps_array_step3_nohet
 
-4️⃣ Remove related individuals (>0.0884)
+
+############################################
+# 7. Remove related individuals (>0.0884)
+############################################
+# --king-cutoff 0.0884 removes one sample from each pair above the cutoff
+# (roughly closer than 3rd-degree relatives).
 singularity exec plink_combo.sif plink2 \
   --pfile snps_array_step3_nohet \
   --king-cutoff 0.0884 \
   --make-pgen \
   --out snps_array_step4_unrelated
 
-🟧 SNP-LEVEL QC
-6️⃣ Filter SNPs: missingness <10%, MAF>5%, HWE>1e−6
+
+####################
+# 🟧 SNP-LEVEL QC  #
+####################
+
+#####################################################################
+# 8. Filter SNPs by missingness <10%, MAF >5%, HWE p > 1e−6
+#####################################################################
+# --geno 0.10 : remove SNPs with >10% missingness
+# --maf 0.05  : keep SNPs with minor allele frequency ≥5%
+# --hwe 1e-6  : remove SNPs deviating strongly from HWE
 singularity exec plink_combo.sif plink2 \
   --pfile snps_array_step4_unrelated \
   --geno 0.10 \
@@ -132,22 +157,34 @@ singularity exec plink_combo.sif plink2 \
   --hwe 1e-6 \
   --make-pgen \
   --out snps_array_step6_snpqc
-7️⃣ Remove ambiguous SNPs (A/T, T/A, C/G, G/C)
-awk 'NR>1 && (($4=="A" && $5=="T") ||
-  ($4=="T" && $5=="A") ||
-  ($4=="C" && $5=="G") ||
-  ($4=="G" && $5=="C")) {print $3}' snps_array_step6_snpqc.pvar > ambiguous_snps.txt
 
+
+#############################################################
+# 9. Remove strand-ambiguous SNPs (A/T, T/A, C/G, G/C)
+#############################################################
+# Extract ambiguous SNP IDs from the .pvar file and save to ambiguous_snps.txt
+awk 'NR>1 && (($4=="A" && $5=="T") || \
+              ($4=="T" && $5=="A") || \
+              ($4=="C" && $5=="G") || \
+              ($4=="G" && $5=="C")) {print $3}' \
+    snps_array_step6_snpqc.pvar > ambiguous_snps.txt
+
+# Exclude ambiguous SNPs and create final SNP-QCed dataset
 singularity exec plink_combo.sif plink2 \
   --pfile snps_array_step6_snpqc \
   --exclude ambiguous_snps.txt \
   --make-pgen \
   --out snps_array_step7_noambig
 
-#count
+
+##################################
+# 10. Count remaining SNPs
+##################################
+# Write all variant IDs to a list, then count how many SNPs passed QC.
 singularity exec plink_combo.sif plink2 \
   --pfile snps_array_step7_noambig \
   --write-snplist \
   --out snps_array_step7_noambig
 
 wc -l snps_array_step7_noambig.snplist
+# (lines = number of SNPs that survived all QC steps)
