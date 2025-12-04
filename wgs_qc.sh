@@ -1,7 +1,32 @@
-#Run sample-level QC with bcftools stats on that msVCF
-bcftools stats -s - wgs_ms_raw.vcf.gz > wgs.stats
-#extract total variant count with awk
-grep '^PSC' wgs.stats \
+#!/usr/bin/env bash
+set -euo pipefail
+
+########################################
+# Config
+########################################
+
+# Raw WGS multi-sample VCF (msVCF)
+RAW_VCF="wgs_ms_raw.vcf.gz"
+
+# Prefix for output files
+PREFIX="wgs"
+
+echo "[INFO] Raw WGS VCF: ${RAW_VCF}"
+echo "[INFO] Prefix      : ${PREFIX}"
+
+########################################
+# STEP 1 – Sample-level QC with bcftools
+########################################
+echo "[STEP 1] Running bcftools stats..."
+
+# Per-sample stats from raw WGS VCF
+bcftools stats -s - "${RAW_VCF}" > "${PREFIX}.stats"
+
+echo "[STEP 1] Extracting per-sample QC metrics (singletons, Ti/Tv, depth, total variants)..."
+
+# Extract:
+#  sample, nSingletons, TiTv, meanDP, totalVar
+grep '^PSC' "${PREFIX}.stats" \
   | awk 'BEGIN{
            OFS="\t";
            print "sample","nSingletons","TiTv","meanDP","totalVar";
@@ -16,60 +41,116 @@ grep '^PSC' wgs.stats \
            nIndels     = $9;
            avgDP       = $10;
            nSingletons = $11;
+
+           # Transition/transversion ratio (avoid division by zero)
            titv = (nTv > 0 ? nTs / nTv : 0);
-           totalVar = nNonRefHom + nHets ;
+
+           # Total non-reference variants = non-ref homozygotes + hets
+           totalVar = nNonRefHom + nHets;
+
            print sample, nSingletons, titv, avgDP, totalVar;
-         }' > wgs_sample_qc_metrics.txt
-#------extract good sample-----------
+         }' > "${PREFIX}_sample_qc_metrics.txt"
+
+########################################
+# STEP 2 – Python MAD filter (5×MAD)
+########################################
+echo "[STEP 2] Running Python MAD-based outlier detection..."
+
+python3 - << 'EOF_PY'
 import numpy as np
-# Input / output
-metrics_file = "wgs_sample_qc_metrics.txt"   # columns: sample  nSingletons  TiTv  meanDP  totalVar
+
+metrics_file = "wgs_sample_qc_metrics.txt"  # produced above
 prefix       = "wgs"
-# Read table (skip header)
+
 samples = []
 values  = []
+
 with open(metrics_file) as f:
-    header = next(f)
+    header = next(f)  # skip header
     for line in f:
         if not line.strip():
             continue
         flds = line.strip().split()
+        # Expect: sample nSingletons TiTv meanDP totalVar
         samples.append(flds[0])
-        values.append([float(flds[1]), float(flds[2]), float(flds[3]), float(flds[4])])
-vals = np.array(values)   # shape (N, 4) = [nSingletons, TiTv, meanDP, totalVar]
-# medians per column
+        values.append([
+            float(flds[1]),  # nSingletons
+            float(flds[2]),  # TiTv
+            float(flds[3]),  # meanDP
+            float(flds[4])   # totalVar
+        ])
+
+vals = np.array(values)  # shape: (N, 4)
+
+# Median per metric
 med = np.median(vals, axis=0)
-# absolute deviations from median
+
+# Absolute deviation from median
 dev = np.abs(vals - med)
-# MAD per column
+
+# Median absolute deviation (MAD) per metric
 mad = np.median(dev, axis=0)
-# thresholds = 5 * MAD
+
+# Threshold = 5 × MAD
 thr = 5 * mad
-# boolean mask: outlier if any metric > 5 * MAD from median
+
+# Mark as outlier if any metric deviates > 5×MAD
 outlier_mask = (dev > thr).any(axis=1)
+
 bad_samples  = [s for s, o in zip(samples, outlier_mask) if o]
 good_samples = [s for s, o in zip(samples, outlier_mask) if not o]
+
+print(f"[PYTHON] N samples: {len(samples)}")
+print(f"[PYTHON] N bad   : {len(bad_samples)}")
+print(f"[PYTHON] N good  : {len(good_samples)}")
+
 with open(f"{prefix}_bad_samples.txt", "w") as fb:
-    fb.write("\n".join(bad_samples) + "\n")
+    if bad_samples:
+        fb.write("\n".join(bad_samples) + "\n")
+
 with open(f"{prefix}_good_samples.txt", "w") as fg:
-    fg.write("\n".join(good_samples) + "\n")
-#Filter out bad samples from the msVCF
+    if good_samples:
+        fg.write("\n".join(good_samples) + "\n")
+EOF_PY
+
+########################################
+# STEP 3 – Keep only good samples in msVCF
+########################################
+echo "[STEP 3] Subsetting VCF to good samples..."
+
 bcftools view \
-  -S wgs_good_samples.txt \
-  -Oz -o wgs_samples_qc.vcf.gz \
-  wgs_ms_raw.vcf.gz
-tabix -p vcf wgs_samples_qc.vcf.gz
-bcftools view -Ou wgs_samples_qc.vcf.gz \
+  -S "${PREFIX}_good_samples.txt" \
+  -Oz -o "${PREFIX}_samples_qc.vcf.gz" \
+  "${RAW_VCF}"
+
+tabix -p vcf "${PREFIX}_samples_qc.vcf.gz"
+
+########################################
+# STEP 4 – Genotype & site-level QC
+########################################
+echo "[STEP 4] Applying genotype & variant filters (DP,GQ,QUAL,F_MISSING,gnomAD)..."
+
+bcftools view -Ou "${PREFIX}_samples_qc.vcf.gz" \
   | bcftools +setGT -Ou -- -t q -n . -i 'FMT/DP<8 || FMT/GQ<20' \
   | bcftools +fill-tags -Ou -- -t F_MISSING \
-  | bcftools view -Oz -o wgs_var_qc.vcf.gz \
+  | bcftools view -Oz -o "${PREFIX}_var_qc.vcf.gz" \
       -i 'QUAL>=30 && F_MISSING<0.20 && INFO/gnomAD_FILTER="PASS"'
+
+tabix -p vcf "${PREFIX}_var_qc.vcf.gz"
+
+########################################
+# STEP 5 – Convert to PLINK2 pgen + SNP QC
+########################################
+echo "[STEP 5] Converting to PLINK2 pgen and applying SNP-level filters..."
+
 plink2 \
-  --vcf wgs_var_qc.vcf.gz \
+  --vcf "${PREFIX}_var_qc.vcf.gz" \
   --snps-only just-acgt \
   --max-alleles 2 \
   --geno 0.20 \
   --maf 0.05 \
   --hwe 5e-5 midp \
   --make-pgen \
-  --out wgs_ps_step1
+  --out "${PREFIX}_ps_step1"
+
+echo "[DONE] WGS QC finished. Final PLINK2 dataset: ${PREFIX}_ps_step1"
