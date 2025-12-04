@@ -32,24 +32,32 @@ grep '^PSC' "${PREFIX}.stats" \
            print "sample","nSingletons","TiTv","meanDP","totalVar";
          }
          {
+           # Columns from PSC line:
+           # [3]sample [4]nRefHom [5]nNonRefHom [6]nHets
+           # [7]nTransitions [8]nTransversions [9]nIndels
+           # [10]average depth [11]nSingletons ...
+
            sample      = $3;
-           nRefHom     = $4;
-           nNonRefHom  = $5;
-           nHets       = $6;
-           nTs         = $7;
-           nTv         = $8;
-           nIndels     = $9;
-           avgDP       = $10;
-           nSingletons = $11;
+           nNonRefHom  = $5 + 0;
+           nHets       = $6 + 0;
+           nTs         = $7 + 0;
+           nTv         = $8 + 0;
+           avgDP       = $10 + 0;
+           nSingletons = $11 + 0;
 
-           # Transition/transversion ratio (avoid division by zero)
-           titv = (nTv > 0 ? nTs / nTv : 0);
-
-           # Total non-reference variants = non-ref homozygotes + hets
+           # Total non-reference variants
            totalVar = nNonRefHom + nHets;
+
+           # Ti/Tv: NA if there are no transversions
+           if (nTv > 0) {
+             titv = nTs / nTv;
+           } else {
+             titv = "NA";
+           }
 
            print sample, nSingletons, titv, avgDP, totalVar;
          }' > "${PREFIX}_sample_qc_metrics.txt"
+
 
 ########################################
 # STEP 2 – Python MAD filter (5×MAD)
