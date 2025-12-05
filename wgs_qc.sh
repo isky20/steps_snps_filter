@@ -139,7 +139,7 @@ tabix -p vcf "${PREFIX}_samples_qc.vcf.gz"
 echo "[STEP 4] Applying genotype & variant filters (DP,GQ,QUAL,F_MISSING,gnomAD)..."
 
 bcftools view -Ou "${PREFIX}_samples_qc.vcf.gz" \
-  | bcftools +setGT -Ou -- -t q -n . -i 'FMT/DP<8 || FMT/GQ<20' \
+  | bcftools +setGT -Ou -- -t q -n . -i 'FMT/GQ<20' \
   | bcftools +fill-tags -Ou -- -t F_MISSING \
   | bcftools view -Oz -o "${PREFIX}_var_qc.vcf.gz" \
       -i 'QUAL>=30 && F_MISSING<0.20'
