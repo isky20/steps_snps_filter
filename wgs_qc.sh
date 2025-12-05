@@ -169,3 +169,17 @@ plink2 \
   --out "${PREFIX}_ps_step1"
 
 echo "[DONE] WGS QC finished. Final PLINK2 dataset: ${PREFIX}_ps_step1"
+
+############################################
+# STEP 6 – Remove related individuals (>0.0884)
+############################################
+echo "[STEP 6] Removing related individuals (KING cutoff 0.0884)..."
+
+plink2 \
+  --pfile "${PREFIX}_ps_step1" \
+  --king-cutoff 0.0884 \
+  --make-pgen \
+  --out "${PREFIX}_ps_step2_unrelated"
+
+echo "[DONE] Final unrelated WGS dataset: ${PREFIX}_ps_step2_unrelated"
+
