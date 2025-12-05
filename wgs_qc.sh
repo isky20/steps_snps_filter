@@ -136,14 +136,14 @@ echo "[STEP 3] Subsetting VCF to good samples..."
 bcftools view \
   -S "${PREFIX}_good_samples.txt" \
   -Oz -o "${PREFIX}_samples_qc.vcf.gz" \
-  "${RAW_VCF}"
+  "${PREFIX}_samples_qc_norm.vcf.gz"
 
 tabix -p vcf "${PREFIX}_samples_qc.vcf.gz"
 
 ########################################
 # STEP 4 – Genotype & site-level QC
 ########################################
-echo "[STEP 4] Applying genotype & variant filters (DP,GQ,QUAL,F_MISSING,gnomAD)..."
+echo "[STEP 4] Applying genotype & variant filters (DP,GQ,QUAL,F_MISSING)..."
 
 bcftools view -Ou "${PREFIX}_samples_qc.vcf.gz" \
   | bcftools +setGT -Ou -- -t q -n . -i 'FMT/GQ<20' \
