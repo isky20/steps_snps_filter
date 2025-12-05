@@ -19,8 +19,15 @@ echo "[INFO] Prefix      : ${PREFIX}"
 ########################################
 echo "[STEP 1] Running bcftools stats..."
 
+bcftools norm -m-any -f GRCh38.fa \
+  -Oz -o "${PREFIX}_samples_qc_norm.vcf.gz" \
+  "${RAW_VCF}"
+
+tabix -p vcf "${PREFIX}_samples_qc_norm.vcf.gz"
+
+
 # Per-sample stats from raw WGS VCF
-bcftools stats -s - "${RAW_VCF}" > "${PREFIX}.stats"
+bcftools stats -s - "${PREFIX}_samples_qc_norm.vcf.gz" > "${PREFIX}.stats"
 
 echo "[STEP 1] Extracting per-sample QC metrics (singletons, Ti/Tv, depth, total variants)..."
 
