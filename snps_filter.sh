@@ -162,11 +162,11 @@ singularity exec plink_combo.sif plink2 \
 ############################################
 # 7. Remove related individuals (>0.0884) #
 ############################################
-singularity exec plink_combo.sif plink2 \
-  --pfile snps_array_step3_nohet \
-  --king-cutoff 0.0884 \
-  --make-pgen \
-  --out snps_array_step4_unrelated
+#singularity exec plink_combo.sif plink2 \
+#  --pfile snps_array_step3_nohet \
+#  --king-cutoff 0.0884 \
+#  --make-pgen \
+#  --out snps_array_step4_unrelated
 
 ####################
 # 🟧 SNP-LEVEL QC  #
@@ -176,7 +176,7 @@ singularity exec plink_combo.sif plink2 \
 # 8. Filter SNPs: missingness <10%, MAF>5%, HWE p > 1e−6
 #####################################################################
 singularity exec plink_combo.sif plink2 \
-  --pfile snps_array_step4_unrelated \
+  --pfile snps_array_step3_nohet \
   --geno 0.10 \
   --maf 0.05 \
   --hwe 1e-6 \
