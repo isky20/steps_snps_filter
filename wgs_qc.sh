@@ -142,7 +142,7 @@ bcftools view -Ou "${PREFIX}_samples_qc.vcf.gz" \
   | bcftools +setGT -Ou -- -t q -n . -i 'FMT/DP<8 || FMT/GQ<20' \
   | bcftools +fill-tags -Ou -- -t F_MISSING \
   | bcftools view -Oz -o "${PREFIX}_var_qc.vcf.gz" \
-      -i 'QUAL>=30 && F_MISSING<0.20 && INFO/gnomAD_FILTER="PASS"'
+      -i 'QUAL>=30 && F_MISSING<0.20'
 
 tabix -p vcf "${PREFIX}_var_qc.vcf.gz"
 
