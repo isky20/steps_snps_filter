@@ -1,37 +1,18 @@
-# with plink2 
-plink2 \
-  --pfile snps_array_step7_noambig \
-  --extract wgs_ps_step1.snplist \
-  --write-snplist \
-  --out snps_array_wgs_overlap
+sort snps_array.snplist > snps_array.sorted
+sort WGS_snps.snplist   > WGS_snps.sorted
+
+
+# 1) Overlap: present in BOTH snps_array AND WGS
+comm -12 snps_array.sorted WGS_snps.sorted > snps_array_wgs_overlap.snplist
+
+# 2) snps_array only: in array, NOT in WGS
+comm -23 snps_array.sorted WGS_snps.sorted > snps_array_only.snplist
+
+# 3) WGS only: in WGS, NOT in array
+comm -13 snps_array.sorted WGS_snps.sorted > WGS_only.snplist
+
+
 
 wc -l snps_array_wgs_overlap.snplist
-
-# Array-only SNPs = all array SNPs minus overlap
-plink2 \
-  --pfile snps_array_step7_noambig \
-  --exclude snps_array_wgs_overlap.snplist \
-  --write-snplist \
-  --out snps_array_only_not_in_wgs
-
-  wc -l snps_array_only_not_in_wgs
-
-
-# All SNPs from WGS
-plink2 \
-  --pfile wgs_ps_step1 \
-  --write-snplist \
-  --out wgs_all
-
-wc -l  wgs_all
-
-
-
-# WGS-only SNPs = all WGS SNPs minus overlap
-plink2 \
-  --pfile wgs_ps_step1 \
-  --exclude snps_array_wgs_overlap.snplist \
-  --write-snplist \
-  --out wgs_only_not_in_array
-
-wc -l  wgs_only_not_in_array
+wc -l snps_array_only.snplist
+wc -l WGS_only.snplist
