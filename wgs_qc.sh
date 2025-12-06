@@ -187,6 +187,6 @@ echo "[DONE] Final unrelated WGS dataset: ${PREFIX}_ps_step2_unrelated"
 plink2 \
   --pfile "${PREFIX}_ps_step2_unrelated" \
   --write-snplist \
-  --out "WGS_snps.snplist"
+  --out WGS_snps.snplist
 
-wc -l "WGS_snps.snplist"
+wc -l WGS_snps.snplist
