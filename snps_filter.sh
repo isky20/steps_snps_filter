@@ -204,6 +204,6 @@ singularity exec plink_combo.sif plink2 \
 singularity exec plink_combo.sif plink2 \
   --pfile snps_array_step7_noambig \
   --write-snplist \
-  --out snps_array.snplist
+  --out snps_array
 
 wc -l snps_array.snplist
