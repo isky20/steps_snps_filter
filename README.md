@@ -1,3 +1,4 @@
+
 # TArray
 
 TArray is a small collection of shell pipelines for joint quality control (QC) and harmonisation of **whole-genome sequencing (WGS)** and **SNP-array** data, developed in the context of building a Turkish population–specific SNP array and downstream PRS / GWAS analyses.
