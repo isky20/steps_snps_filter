@@ -81,9 +81,6 @@ singularity exec ~/isky20/02.software/sifs/bcftools.sif   bcftools annotate -x I
 bgzip -@ 8 -c allrun1to19_v3.vcf > allrun1to19_v3.vcf.gz
 tabix -p vcf allrun1to19_v3.vcf.gz
 
-
-
-
 ##############################################################
 # 3. Convert SNP-array VCF to PLINK2 pgen (raw starting point)
 ##############################################################
