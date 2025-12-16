@@ -143,55 +143,31 @@ singularity exec ~/isky20/02.software/sifs/plink2.sif plink \
 ###########################################
 # 6b. Heterozygosity outliers (R script)  #
 ###########################################
-# Run R inline to generate het_outliers.txt from het.het
 Rscript - << 'EOF_R'
-# Read het.het (do NOT treat '#' as comment)
-het <- read.table(
-  "het.het",
-  header           = TRUE,
-  comment.char     = "",
-  stringsAsFactors = FALSE
-)
+het <- read.table("het.het", header=TRUE, stringsAsFactors=FALSE)
 
-# Rename first column to IID if needed (often X.IID)
-names(het)[1] <- "IID"
+# mean/SD of F
+meanF <- mean(het$F, na.rm=TRUE)
+sdF   <- sd(het$F,   na.rm=TRUE)
 
-# Check columns (for debug)
-print(colnames(het))
-# Expected: "IID" "O.HOM." "E.HOM." "OBS_CT" "F"
+# outliers
+out <- het[abs(het$F - meanF) > 3*sdF, c("FID","IID")]
+out <- unique(out)
 
-# Mean and SD of inbreeding coefficient F
-meanF <- mean(het$F, na.rm = TRUE)
-sdF   <- sd(het$F,   na.rm = TRUE)
-
-# Flag outliers: |F - mean(F)| > 3 * SD
-het$outlier <- abs(het$F - meanF) > 3 * sdF
-
-# Subset outliers (IID only)
-out <- het[het$outlier, c("IID"), drop = FALSE]
-
+# write (no header)
 if (nrow(out) > 0) {
-  # FID = IID
-  out2 <- data.frame(FID = out$IID, IID = out$IID)
-
-  # Write two-column file without header/quotes
-  write.table(
-    out2,
-    "het_outliers.txt",
-    col.names = FALSE,
-    row.names = FALSE,
-    quote     = FALSE
-  )
+  write.table(out, "het_outliers.txt", col.names=FALSE, row.names=FALSE, quote=FALSE)
 } else {
-  # No outliers: create empty file so PLINK --remove works
-  file.create("het_outliers.txt")
+  # safest: write a dummy non-existing ID so --remove doesn't crash on empty file
+  writeLines("0 __NONE__", "het_outliers.txt")
 }
 EOF_R
+
 
 ############################################
 # 6c. Remove heterozygosity outliers      #
 ############################################
-singularity exec plink_combo.sif plink2 \
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
   --pfile snps_array_step2_mind \
   --remove het_outliers.txt \
   --make-pgen \
@@ -200,11 +176,11 @@ singularity exec plink_combo.sif plink2 \
 ############################################
 # 7. Remove related individuals (>0.0884) #
 ############################################
-#singularity exec plink_combo.sif plink2 \
-#  --pfile snps_array_step3_nohet \
-#  --king-cutoff 0.0884 \
-#  --make-pgen \
-#  --out snps_array_step4_unrelated
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
+  --pfile snps_array_step3_nohet \
+  --king-cutoff 0.0884 \
+  --make-pgen \
+  --out snps_array_step4_unrelated
 
 ####################
 # 🟧 SNP-LEVEL QC  #
@@ -213,10 +189,10 @@ singularity exec plink_combo.sif plink2 \
 #####################################################################
 # 8. Filter SNPs: missingness <10%, MAF>5%, HWE p > 1e−6
 #####################################################################
-singularity exec plink_combo.sif plink2 \
-  --pfile snps_array_step3_nohet \
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
+  --pfile snps_array_step4_unrelated \
   --geno 0.10 \
-  --maf 0.05 \
+  --maf 0.01 \
   --hwe 1e-6 \
   --make-pgen \
   --out snps_array_step6_snpqc
@@ -230,7 +206,7 @@ awk 'NR>1 && (($4=="A" && $5=="T") || \
               ($4=="G" && $5=="C")) {print $3}' \
     snps_array_step6_snpqc.pvar > ambiguous_snps.txt
 
-singularity exec plink_combo.sif plink2 \
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
   --pfile snps_array_step6_snpqc \
   --exclude ambiguous_snps.txt \
   --make-pgen \
@@ -239,7 +215,7 @@ singularity exec plink_combo.sif plink2 \
 ##################################
 # 10. Count remaining SNPs       #
 ##################################
-singularity exec plink_combo.sif plink2 \
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
   --pfile snps_array_step7_noambig \
   --write-snplist \
   --out snps_array
