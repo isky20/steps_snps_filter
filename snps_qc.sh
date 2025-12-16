@@ -5,7 +5,10 @@ set -euo pipefail
 # 0. (Optional) Adjust header #
 ###############################
 # Example: rename a header field (e.g. change HWP tag name in the VCF header).
-#sed 's/OLDWORD/NEWWORD/g' input.vcf > input_renamed.vcf
+sed 's/H.W.p-Value/HWpValue/g' input.vcf > input_renamed.vcf
+
+bgzip -@ 8 -c allrun1to19.vcf > allrun1to19.vcf.gz
+tabix -p vcf allrun1to19.vcf
 
 #########################################
 # 1. Add extra INFO fields to VCF header
@@ -40,28 +43,52 @@ set -euo pipefail
 ##INFO=<ID=ordered_alleles,Number=.,Type=String,Description="Ordered alleles">
 ##INFO=<ID=allele_count,Number=.,Type=String,Description="Allele count">
 #EOF
+###########################################
+bcftools annotate \
+  -h extra_info_header.hdr \
+  -Oz -o vcf_with_info_header.vcf.gz \
+  allrun1to19_chr1_22.vcf.gz
 
-#bcftools annotate \
-#  -h extra_info_header.hdr \
-#  -Oz -o vcf_with_info_header.vcf.gz \
-#  input_renamed.vcf
-
-#tabix vcf_with_info_header.vcf.gz
+tabix vcf_with_info_header.vcf.gz
 
 ###########################################
 # 2. Strip INFO for PLINK (keep GT only) #
 ###########################################
 bcftools annotate \
   -x INFO \
-  -Oz -o vcf_noinfo.vcf.gz  $1                                #########vcf_with_info_header.vcf.gz######input here###########
+  -Oz -o vcf_noinfo.vcf.gz  vcf_with_info_header.vcf.gz                          
 
 tabix vcf_noinfo.vcf.gz             
+###########################################
+###########################################
+##########START############################
+############################HERE###########
+###########################################
+
+sed 's/H.W.p-Value/HWpValue/g' input.vcf > allrun1to19_v1.vcf
+
+bgzip -@ 8 -c allrun1to19_v1.vcf > allrun1to19_v1.vcf.gz
+tabix -p vcf allrun1to19_v1.vcf.gz
+
+singularity exec ~/isky20/02.software/sifs/bcftools.sif bcftools view \
+-r 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22 \
+-Ov -o allrun1to19_v2.vcf   allrun1to19_v1.vcf.gz
+
+
+singularity exec ~/isky20/02.software/sifs/bcftools.sif   bcftools annotate -x INFO -Ov -o allrun1to19_v3.vcf allrun1to19_v2.vcf --force
+
+
+bgzip -@ 8 -c allrun1to19_v3.vcf > allrun1to19_v3.vcf.gz
+tabix -p vcf allrun1to19_v3.vcf.gz
+
+
+
 
 ##############################################################
 # 3. Convert SNP-array VCF to PLINK2 pgen (raw starting point)
 ##############################################################
 singularity exec plink_combo.sif plink2 \
-  --vcf vcf_noinfo.vcf.gz \
+  --vcf vcf_with_info_header.vcf.gz \
   --snps-only just-acgt \
   --max-alleles 2 \
   --make-pgen \
@@ -77,7 +104,7 @@ singularity exec plink_combo.sif plink2 \
 ##############
 # 4. Autosome
 ##############
-singularity exec plink_combo.sif plink2 \
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
   --pfile snps_array_qc0 \
   --autosome \
   --make-pgen \
@@ -87,18 +114,29 @@ singularity exec plink_combo.sif plink2 \
 ####################################################
 # 5. Remove samples with high missingness (> 5%)  #
 ####################################################
-singularity exec plink_combo.sif plink2 \
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
   --pfile snps_array_step1 \
   --mind 0.05 \
   --make-pgen \
   --out snps_array_step2_mind
 
+
+
+
+
+
 ######################################
 # 6. Heterozygosity outliers (PLINK) #
 ######################################
-# Create het.het
-singularity exec plink_combo.sif plink2 \
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
   --pfile snps_array_step2_mind \
+  --make-bed \
+  --out snps_array_step2_mind_bed
+
+
+# Create het.het
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink \
+  --bfile snps_array_step2_mind_bed \
   --het \
   --out het
 
