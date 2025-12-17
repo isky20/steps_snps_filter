@@ -4,6 +4,7 @@
 TArray is a small collection of shell pipelines for joint quality control (QC) and harmonisation of **whole-genome sequencing (WGS)** and **SNP-array** data, developed in the context of building a Turkish population–specific SNP array and downstream PRS / GWAS analyses.
 
 The scripts implement standard GWAS/WGS QC steps (sample- and variant-level) based on published recommendations and QC table (missingness, MAF, HWE, Ti/Tv, depth, singletons, ambiguous SNPs, etc.).
+<img width="1083" height="433" alt="sd drawio" src="https://github.com/user-attachments/assets/938f9b71-3eed-410d-8f11-e45362ac1f9c" />
 
 ---
 
