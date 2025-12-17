@@ -117,11 +117,6 @@ singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
   --make-pgen \
   --out snps_array_step2_mind
 
-
-
-
-
-
 ######################################
 # 6. Heterozygosity outliers (PLINK) #
 ######################################
