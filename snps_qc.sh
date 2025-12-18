@@ -84,8 +84,8 @@ tabix -p vcf allrun1to19_v3.vcf.gz
 ##############################################################
 # 3. Convert SNP-array VCF to PLINK2 pgen (raw starting point)
 ##############################################################
-singularity exec plink_combo.sif plink2 \
-  --vcf vcf_with_info_header.vcf.gz \
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
+  --vcf allrun1to19_v3.vcf.gz \
   --snps-only just-acgt \
   --max-alleles 2 \
   --make-pgen \
@@ -184,10 +184,14 @@ singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
 singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
   --pfile snps_array_step4_unrelated \
   --geno 0.10 \
-  --maf 0.01 \
-  --hwe 1e-6 \
   --make-pgen \
-  --out snps_array_step6_snpqc
+  --out snps_array_step6_snpqc_geno
+
+  singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
+  --pfile snps_array_step6_snpqc_geno \
+  --maf 0.01 \
+  --make-pgen \
+  --out snps_array_step6_snpqc_maf
 
 #############################################################
 # 9. Remove strand-ambiguous SNPs (A/T, T/A, C/G, G/C)
@@ -196,20 +200,12 @@ awk 'NR>1 && (($4=="A" && $5=="T") || \
               ($4=="T" && $5=="A") || \
               ($4=="C" && $5=="G") || \
               ($4=="G" && $5=="C")) {print $3}' \
-    snps_array_step6_snpqc.pvar > ambiguous_snps.txt
+    snps_array_step6_snpqc_maf.pvar > ambiguous_snps.txt
 
 singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
-  --pfile snps_array_step6_snpqc \
+  --pfile snps_array_step6_snpqc_maf \
   --exclude ambiguous_snps.txt \
   --make-pgen \
   --out snps_array_step7_noambig
 
-##################################
-# 10. Count remaining SNPs       #
-##################################
-singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
-  --pfile snps_array_step7_noambig \
-  --write-snplist \
-  --out snps_array
 
-wc -l snps_array.snplist
