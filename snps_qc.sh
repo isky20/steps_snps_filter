@@ -170,6 +170,11 @@ singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
 ############################################
 singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
   --pfile snps_array_step3_nohet \
+  --make-king-table --king-table-filter 0.0884 \
+  --out snps_array_step3_related_pairs
+
+singularity exec ~/isky20/02.software/sifs/plink2.sif plink2 \
+  --pfile snps_array_step3_nohet \
   --king-cutoff 0.0884 \
   --make-pgen \
   --out snps_array_step4_unrelated
