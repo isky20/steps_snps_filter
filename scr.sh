@@ -1,6 +1,6 @@
 #SNPs Data Selection
 
-``
+```
 Standard GWAS QC:
  Genotyping rate >0,99
  Remove SNPs with >5% missing data
@@ -11,4 +11,4 @@ Standard GWAS QC:
  Linkage-disequilibrium (LD) score
  Hardy-Weinberg equilibrium (HWE) P>1x10-6
 
-``
+```
