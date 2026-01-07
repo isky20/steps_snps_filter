@@ -31,3 +31,23 @@ Standard GWAS For samples:
   -  Linkage-disequilibrium (LD) score
   -  Hardy-Weinberg Equilibrium (HWE) p > 1x10-6
 "
+
+# load data
+CRC_SNP <- read_excel("data/resources/1_CRC_SNPs_list_205_Nature_2023.xlsx")
+
+# The first 5 rows and first 7 columns are shown
+CRC_SNP[c(1:5),c(1:7)]
+
+# .txt file generation
+SNP_file_CRC <- CRC_SNP[,c(1,2)]
+head(SNP_file_CRC)
+
+# two avoid scientific annotation
+SNP_file_CRC$`POS (GRCh37)` <- format(SNP_file_CRC$`POS (GRCh37)`, scientific=FALSE)
+
+# create folder data/1_snps_extraction/ and save as .txt
+dir.create("data/1_snps_extraction/", recursive=TRUE)
+write.table(SNP_file_CRC, "data/1_snps_extraction/1_SNP_file_CRC.txt", quote = F, col.names = F, row.names = F, qmethod = "double", sep = "\t")
+
+
+
