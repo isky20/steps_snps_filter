@@ -2,8 +2,11 @@
 import argparse, json, os
 import pandas as pd
 
-python3 annot_from_map.py   --in top100_traits_cardiology.tsv   --sep $'\t'   --trait-col trait   --map cardio.json   --out top100_traits_cardiology_annot.tsv
-
+# -------------------------
+# Helpers
+# python3 annot_from_map.py   --in top100_traits_cardiology.tsv   --sep $'\t'   --trait-col trait \
+# --map cardio.json   --out top100_traits_cardiology_annot.tsv
+# -------------------------
 
 
 def load_map(path: str) -> dict:
