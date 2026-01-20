@@ -1,0 +1,11 @@
+{
+  "Gynecology": "\\b(endometrial|uterine|cervical|ovarian|vulvar|vaginal|endometriosis|fibroid|leiomyoma|polycystic\\s+ovary|pcos|menopause|menarche|amenorrh(ea|oe)a|dysmenorrh(ea|oe)a|fertility|infertil|reproductive|pregnan|gestation|preeclampsia|eclampsia|placenta|stillbirth|miscarriage|preterm)\\b",
+
+  "Oncology": "\\b(cancer|carcinoma|tumou?r|neoplasm|malignan|metastasis|sarcoma|glioblastoma|melanoma|leukem(ia|ic)|lymphoma|myeloma|medulloblastoma|neuroblastoma|gastrointestinal\\s+stromal\\s+tumou?r|gist)\\b",
+
+  "Neurology": "\\b(neuro|brain|alzheimer|dementia|parkinson|parkinsonism|epilep|seizure|convulsion|migraine|multiple\\s+sclerosis|\\bALS\\b|amyotrophic\\s+lateral\\s+sclerosis|motor\\s+neuron\\s+disease|ataxia|dystonia|tremor|neuropathy|charcot\\-marie\\-tooth|cmt\\b|neurodevelopment|autism|\\bASD\\b|\\bADHD\\b|intellectual\\s+disability|developmental\\s+delay)\\b",
+
+  "Immunology": "\\b(autoimmune|immune|immunolog|immunodefic|inflammat|psoriasis|psoriatic|crohn|ulcerative\\s+colitis|inflammatory\\s+bowel|\\bIBD\\b|rheumatoid\\s+arthritis|lupus|\\bSLE\\b|celiac|coeliac|sarcoidosis|asthma|allerg|atopy|ankylosing|spondylitis)\\b",
+
+  "Cardiology": "\\b(cardiac|cardio|heart|coronary|\\bCAD\\b|ischemi(c|a)|ischaemi(c|a)|myocardial\\s+infarction|\\bMI\\b|angina|arrhythmia|atrial\\s+fibrillation|\\bAF\\b|cardiomyopathy|heart\\s+failure|hypertension|blood\\s+pressure|systolic|diastolic|long\\s+qt|brugada|ventricular\\s+tachycardia|resting\\s+heart\\s+rate)\\b"
+}
