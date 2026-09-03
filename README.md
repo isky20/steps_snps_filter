@@ -47,10 +47,6 @@ The scripts implement standard GWAS/WGS QC steps (sample- and variant-level) bas
    ```bash
    git clone https://github.com/isky20/TArray.git
    cd TArray
-
-
-
-
 ---
 # steps:
 
